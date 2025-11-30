@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem ERP - Jenar Bakery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Print Styling */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background-color: white; }
+            #simulation-result { box-shadow: none; border: none; }
+            aside { display: none; }
+            main { margin: 0; padding: 0; width: 100%; }
+            .page-break { page-break-before: always; }
+        }
+        
+        /* Custom Scrollbar */
+        .scroller::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .scroller::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col no-print z-20">
+        <div class="p-6 border-b border-gray-100">
+            <h1 class="text-xl font-bold text-pink-600"><i class="fas fa-bread-slice mr-2"></i>Jenar Bakery</h1>
+            <p class="text-xs text-gray-500 mt-1 font-semibold">Group C - IE Class 2</p>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-4 py-3 rounded-lg bg-pink-50 text-pink-700 font-medium transition">
+                <i class="fas fa-cart-plus w-6"></i> Buat Pesanan
+            </button>
+            <button onclick="switchTab('orders')" id="nav-orders" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-600 font-medium transition">
+                <i class="fas fa-file-invoice-dollar w-6"></i> Data Pemesanan
+            </button>
+            <button onclick="switchTab('inventory')" id="nav-inventory" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-600 font-medium transition">
+                <i class="fas fa-boxes w-6"></i> Data Bahan Baku
+            </button>
+            <button onclick="switchTab('recipes')" id="nav-recipes" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-600 font-medium transition">
+                <i class="fas fa-book-open w-6"></i> Manajemen Resep
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-gray-100">
+            <button onclick="generateDummyData()" class="w-full py-2 px-4 bg-gray-800 hover:bg-gray-900 text-white text-sm rounded shadow transition">
+                <i class="fas fa-magic mr-2"></i> Generate Data Demo
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto scroller p-4 md:p-8 relative">
+        
+        <!-- SECTION 1: INVENTORY MANAGEMENT -->
+        <section id="inventory-section" class="hidden space-y-6">
+            <div class="flex justify-between items-center flex-wrap gap-4">
+                <h2 class="text-2xl font-bold text-gray-800">Inventory Bahan Baku</h2>
+                <div class="flex gap-2">
+                    <div class="relative">
+                        <input type="text" id="search-inventory" onkeyup="renderInventory()" placeholder="Cari bahan..." class="pl-9 pr-4 py-2 border rounded-lg focus:ring-pink-500 focus:border-pink-500 text-sm">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                    </div>
+                    <button onclick="toggleModal('modal-material')" class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition text-sm font-bold">
+                        <i class="fas fa-plus mr-2"></i>Tambah Produk
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                            <th class="p-4 border-b">Nama Bahan</th>
+                            <th class="p-4 border-b">Stok Saat Ini</th>
+                            <th class="p-4 border-b">Satuan</th>
+                            <th class="p-4 border-b text-right">Harga Beli / Satuan</th>
+                            <th class="p-4 border-b text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body" class="text-sm">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+                <div id="empty-inventory" class="p-8 text-center text-gray-400 hidden">
+                    Belum ada data bahan baku.
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: RECIPE MANAGEMENT -->
+        <section id="recipes-section" class="hidden space-y-6">
+            <div class="flex justify-between items-center flex-wrap gap-4">
+                <h2 class="text-2xl font-bold text-gray-800">Manajemen Resep</h2>
+                <div class="flex gap-2">
+                    <div class="relative">
+                        <input type="text" id="search-recipe" onkeyup="renderRecipes()" placeholder="Cari resep..." class="pl-9 pr-4 py-2 border rounded-lg focus:ring-pink-500 focus:border-pink-500 text-sm">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                    </div>
+                    <button onclick="openRecipeModal()" class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition text-sm font-bold">
+                        <i class="fas fa-plus mr-2"></i>Buat Produk Baru
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-sm text-gray-500 mb-2">Harga jual dihitung otomatis berdasarkan HPP + Margin (Kompetitif 25%, Standar 60%, Premium 85%)</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="recipe-grid">
+                <!-- Recipe Cards will be injected here -->
+            </div>
+            <div id="empty-recipes" class="p-12 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl hidden">
+                Belum ada resep produk. Silakan buat produk baru.
+            </div>
+        </section>
+
+        <!-- SECTION 3: FORM PEMESANAN (CART SYSTEM) -->
+        <section id="dashboard-section" class="space-y-6">
+            <header class="mb-4 no-print flex justify-between items-end">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Kasir / Pemesanan</h2>
+                    <p class="text-gray-500">Masukkan item ke keranjang sebelum diproses.</p>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 no-print">
+                
+                <!-- Left: Order Form -->
+                <div class="lg:col-span-1 space-y-4">
+                    <!-- Customer Info -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">Informasi Pelanggan</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Nama Pemesan</label>
+                                <input type="text" id="order-customer" class="w-full border-gray-300 rounded border p-2 text-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Nama Customer">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal Kirim</label>
+                                <input type="date" id="order-date" class="w-full border-gray-300 rounded border p-2 text-sm focus:ring-pink-500 focus:border-pink-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Kategori Harga</label>
+                                <select id="order-price-strategy" onchange="recalculateCart()" class="w-full border-gray-300 rounded border p-2 text-sm focus:ring-pink-500 focus:border-pink-500">
+                                    <option value="competitive">Kompetitif (25%)</option>
+                                    <option value="standard" selected>Standar (60%)</option>
+                                    <option value="premium">Premium (85%)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Item Form -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">Tambah Item</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Pilih Produk</label>
+                                <select id="cart-product-select" class="w-full border-gray-300 rounded border p-2 text-sm focus:ring-pink-500 focus:border-pink-500">
+                                    <option value="">-- Pilih Produk --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Jumlah (Qty)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="cart-qty" min="1" value="1" class="w-full border-gray-300 rounded border p-2 text-sm focus:ring-pink-500 focus:border-pink-500">
+                                    <button onclick="addToCart()" class="bg-pink-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-pink-700 whitespace-nowrap">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Shopping Cart -->
+                <div class="lg:col-span-2 flex flex-col h-full">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 class="font-bold text-gray-700"><i class="fas fa-shopping-basket mr-2 text-pink-500"></i>Keranjang Belanja</h3>
+                            <button onclick="clearCart()" class="text-xs text-red-500 hover:text-red-700">Kosongkan</button>
+                        </div>
+                        
+                        <div class="flex-1 overflow-y-auto min-h-[200px] mb-4 bg-gray-50 rounded border p-2">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-gray-500 border-b">
+                                    <tr>
+                                        <th class="pb-2 pl-2">Produk</th>
+                                        <th class="pb-2 text-center">Qty</th>
+                                        <th class="pb-2 text-right">Harga Satuan</th>
+                                        <th class="pb-2 text-right">Subtotal</th>
+                                        <th class="pb-2 text-center"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cart-table-body">
+                                    <!-- Cart Items -->
+                                </tbody>
+                            </table>
+                            <div id="empty-cart-msg" class="text-center text-gray-400 mt-10">
+                                Keranjang masih kosong.
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-gray-600">Total Item:</span>
+                                <span class="font-bold" id="cart-total-qty">0</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-lg font-bold text-gray-800">Total Tagihan:</span>
+                                <span class="text-2xl font-bold text-emerald-600" id="cart-total-bill">Rp 0</span>
+                            </div>
+                            <button onclick="processCheckout()" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-emerald-700 transition shadow-lg">
+                                <i class="fas fa-check-circle mr-2"></i> Proses Pesanan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkout Result (Hidden initially) -->
+            <div id="simulation-result" class="hidden bg-white p-8 rounded-xl shadow-lg border border-gray-200 relative mt-6">
+                
+                <!-- Print Header Info -->
+                <div class="flex flex-col md:flex-row justify-between items-start mb-6 border-b pb-4">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-2xl font-bold text-pink-600 mb-1">Jenar Bakery</h1>
+                        <p class="text-sm text-gray-500 mb-4">Invoice / Surat Jalan</p>
+                        
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                            <span class="text-gray-500">Pemesan:</span>
+                            <span class="font-semibold text-gray-800" id="res-customer-name">-</span>
+                            
+                            <span class="text-gray-500">Tgl Pengiriman:</span>
+                            <span class="font-semibold text-gray-800" id="res-delivery-date">-</span>
+
+                            <span class="text-gray-500">Kategori Harga:</span>
+                            <span class="font-semibold text-blue-600" id="res-strategy-name">-</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-400 mb-1">Status Ketersediaan:</p>
+                        <div id="stock-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold">
+                            <!-- Status Dynamic -->
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">Dibuat: <span id="report-created-at"></span></p>
+                    </div>
+                </div>
+
+                <!-- Item List for Print -->
+                <h4 class="font-bold text-gray-700 mb-2">Rincian Pesanan</h4>
+                <table class="w-full text-sm text-left border mb-6">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-2 border">Produk</th>
+                            <th class="p-2 border text-center">Qty</th>
+                            <th class="p-2 border text-right">Harga</th>
+                            <th class="p-2 border text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="res-item-list">
+                        <!-- Filled by JS -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-gray-50 font-bold">
+                            <td colspan="3" class="p-2 border text-right">TOTAL</td>
+                            <td class="p-2 border text-right text-emerald-600" id="res-final-total">Rp 0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <!-- Ingredients Calculation -->
+                <h4 class="font-bold text-gray-700 mb-3 border-l-4 border-gray-300 pl-2">Kebutuhan Bahan Baku Total</h4>
+                <table class="w-full text-sm text-left border mb-6">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-2 border">Bahan Baku</th>
+                            <th class="p-2 border text-right">Total Kebutuhan</th>
+                            <th class="p-2 border text-right">Stok Gudang</th>
+                            <th class="p-2 border text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sim-table-body">
+                        <!-- Rows -->
+                    </tbody>
+                </table>
+
+                <!-- Action Footer -->
+                <div class="mt-8 flex justify-end gap-3 no-print">
+                    <button onclick="window.print()" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition">
+                        <i class="fas fa-print mr-2"></i>Cetak
+                    </button>
+                    <button onclick="cancelCheckout()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition">
+                        Kembali
+                    </button>
+                    <button onclick="saveOrderFinal()" id="btn-save-order" class="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 transition shadow-lg">
+                        <i class="fas fa-save mr-2"></i>Simpan Permanen
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: DATA PEMESANAN (HISTORY) -->
+        <section id="orders-section" class="hidden space-y-6">
+            <header class="mb-4 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Data Pemesanan</h2>
+                    <p class="text-gray-500">Riwayat dan status pesanan.</p>
+                </div>
+                <div class="relative">
+                    <input type="text" id="search-orders" onkeyup="renderOrders()" placeholder="Cari pemesan..." class="pl-9 pr-4 py-2 border rounded-lg focus:ring-pink-500 focus:border-pink-500 text-sm">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                </div>
+            </header>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                            <th class="p-4 border-b text-center">Status</th>
+                            <th class="p-4 border-b">Tanggal Kirim</th>
+                            <th class="p-4 border-b">Nama Pemesan</th>
+                            <th class="p-4 border-b">Rincian Item</th>
+                            <th class="p-4 border-b text-right">Total Tagihan</th>
+                            <th class="p-4 border-b text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-table-body" class="text-sm">
+                        <!-- Orders will be injected here -->
+                    </tbody>
+                </table>
+                <div id="empty-orders" class="p-12 text-center text-gray-400">
+                    <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i><br>
+                    Belum ada data pemesanan.
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: ADD MATERIAL -->
+    <div id="modal-material" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 class="text-lg font-bold mb-4">Tambah Bahan Baku Baru</h3>
+            <form id="form-material" onsubmit="addMaterial(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Nama Bahan</label>
+                    <input type="text" id="mat-name" required class="w-full border rounded p-2" placeholder="Contoh: Tepung Terigu">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Stok Awal</label>
+                        <input type="number" id="mat-stock" required min="0" class="w-full border rounded p-2" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Satuan</label>
+                        <select id="mat-unit" class="w-full border rounded p-2">
+                            <option value="gram">Gram</option>
+                            <option value="kg">Kg</option>
+                            <option value="pcs">Pcs/Butir</option>
+                            <option value="ml">Ml</option>
+                            <option value="liter">Liter</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Harga Beli per Satuan (Rp)</label>
+                    <input type="number" id="mat-price" required min="0" class="w-full border rounded p-2" placeholder="Contoh: 15">
+                    <p class="text-xs text-gray-500 mt-1">*Jika 1kg = 15.000, input harga per gram = 15</p>
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="toggleModal('modal-material')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RESTOCK MATERIAL -->
+    <div id="modal-restock" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 class="text-lg font-bold mb-2">Tambah Stok (Restock)</h3>
+            <p class="text-sm text-gray-500 mb-4">Input jumlah pembelian baru untuk ditambahkan ke gudang.</p>
+            
+            <div class="bg-gray-50 p-3 rounded border mb-4">
+                <p class="text-xs text-gray-500">Nama Bahan:</p>
+                <p class="font-bold text-gray-800" id="restock-name">-</p>
+                <p class="text-xs text-gray-500 mt-1">Stok Saat Ini:</p>
+                <p class="font-bold text-gray-800" id="restock-current">-</p>
+            </div>
+
+            <form onsubmit="submitRestock(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Jumlah Masuk</label>
+                    <input type="number" id="restock-qty" required min="1" class="w-full border rounded p-2 focus:ring-green-500 focus:border-green-500" placeholder="Masukkan jumlah...">
+                </div>
+                
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="toggleModal('modal-restock')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Update Stok</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD RECIPE -->
+    <div id="modal-recipe" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold mb-4">Buat Resep Produk Baru</h3>
+            <form id="form-recipe" onsubmit="saveRecipe(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Nama Produk</label>
+                    <input type="text" id="rec-name" required class="w-full border rounded p-2" placeholder="Contoh: Brownies Kukus">
+                </div>
+                
+                <div class="border-t border-b py-4 my-2">
+                    <label class="block text-sm font-medium mb-2">Komposisi Bahan</label>
+                    <div id="recipe-ingredients-list" class="space-y-2 mb-2">
+                        <!-- Dynamic Inputs -->
+                    </div>
+                    <button type="button" onclick="addIngredientRow()" class="text-sm text-pink-600 hover:text-pink-800 font-medium">
+                        <i class="fas fa-plus-circle"></i> Tambah Bahan
+                    </button>
+                </div>
+
+                <div class="bg-yellow-50 p-3 rounded text-xs text-yellow-800">
+                    Tips: Gunakan pencarian pada kolom bahan untuk menemukan bahan dengan cepat.
+                </div>
+
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="toggleModal('modal-recipe')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700">Simpan Resep</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DATALIST FOR INGREDIENT SEARCH -->
+    <datalist id="material-list">
+        <!-- Will be populated by JS -->
+    </datalist>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATA STATE ---
+        let materials = [];
+        let recipes = [];
+        let orders = [];
+        let cart = []; // Cart Array for Multiple Products
+        let currentSimulationData = null; 
+        let currentRestockIndex = -1;
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderInventory();
+            updateProductDropdown();
+            renderOrders();
+            updateMaterialDatalist(); // Init searchable list
+            
+            // Set Default Date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('order-date').value = today;
+        });
+
+        // --- NAVIGATION ---
+        function switchTab(tabId) {
+            ['dashboard', 'inventory', 'recipes', 'orders'].forEach(t => {
+                document.getElementById(`${t}-section`).classList.add('hidden');
+            });
+            document.getElementById(`${tabId}-section`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-pink-50', 'text-pink-700');
+                el.classList.add('text-gray-600');
+            });
+            document.getElementById(`nav-${tabId}`).classList.add('bg-pink-50', 'text-pink-700');
+            document.getElementById(`nav-${tabId}`).classList.remove('text-gray-600');
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.toggle('hidden');
+        }
+
+        // --- HELPERS ---
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        }
+        
+        const formatDate = (dateString) => {
+            if(!dateString) return '-';
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('id-ID', options);
+        }
+
+        const generateId = () => '_' + Math.random().toString(36).substr(2, 9);
+
+        // --- INVENTORY LOGIC ---
+        function addMaterial(e) {
+            e.preventDefault();
+            const name = document.getElementById('mat-name').value;
+            const stock = parseFloat(document.getElementById('mat-stock').value);
+            const unit = document.getElementById('mat-unit').value;
+            const price = parseFloat(document.getElementById('mat-price').value);
+
+            materials.push({ id: generateId(), name, stock, unit, price });
+            
+            renderInventory();
+            updateMaterialDatalist();
+            toggleModal('modal-material');
+            document.getElementById('form-material').reset();
+            updateProductDropdown();
+        }
+
+        function renderInventory() {
+            const searchQuery = document.getElementById('search-inventory').value.toLowerCase();
+            const tbody = document.getElementById('inventory-table-body');
+            const emptyState = document.getElementById('empty-inventory');
+            tbody.innerHTML = '';
+
+            const filteredMaterials = materials.filter(m => m.name.toLowerCase().includes(searchQuery));
+
+            if (filteredMaterials.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.innerText = materials.length === 0 ? "Belum ada data bahan baku." : "Bahan tidak ditemukan.";
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            filteredMaterials.forEach((mat) => {
+                // Find original index for actions
+                const originalIndex = materials.findIndex(m => m.id === mat.id);
+                
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-gray-50 transition';
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-gray-800">${mat.name}</td>
+                    <td class="p-4">
+                        <span class="${mat.stock < 100 ? 'text-red-600 font-bold' : 'text-gray-600'}">
+                            ${mat.stock.toLocaleString('id-ID')}
+                        </span>
+                    </td>
+                    <td class="p-4 text-gray-500">${mat.unit}</td>
+                    <td class="p-4 text-right">${formatRupiah(mat.price)}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="openRestockModal(${originalIndex})" class="text-green-500 hover:text-green-700 mr-3" title="Tambah Stok">
+                            <i class="fas fa-plus-circle fa-lg"></i>
+                        </button>
+                        <button onclick="deleteMaterial(${originalIndex})" class="text-red-400 hover:text-red-600" title="Hapus Bahan">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteMaterial(index) {
+            if(confirm('Hapus bahan ini?')) {
+                materials.splice(index, 1);
+                renderInventory();
+                updateMaterialDatalist();
+            }
+        }
+
+        function openRestockModal(index) {
+            currentRestockIndex = index;
+            const mat = materials[index];
+            document.getElementById('restock-name').innerText = mat.name;
+            document.getElementById('restock-current').innerText = `${mat.stock.toLocaleString('id-ID')} ${mat.unit}`;
+            document.getElementById('restock-qty').value = '';
+            toggleModal('modal-restock');
+            setTimeout(() => document.getElementById('restock-qty').focus(), 100);
+        }
+
+        function submitRestock(e) {
+            e.preventDefault();
+            const qty = parseFloat(document.getElementById('restock-qty').value);
+            if (qty && qty > 0 && currentRestockIndex > -1) {
+                materials[currentRestockIndex].stock += qty;
+                renderInventory();
+                toggleModal('modal-restock');
+            }
+        }
+
+        function updateMaterialDatalist() {
+            const datalist = document.getElementById('material-list');
+            datalist.innerHTML = '';
+            materials.forEach(m => {
+                const option = document.createElement('option');
+                option.value = m.name; // Display name
+                option.setAttribute('data-id', m.id); // Store ID
+                option.label = `${m.unit} (Rp ${m.price})`;
+                datalist.appendChild(option);
+            });
+        }
+
+        // --- RECIPE LOGIC ---
+        function openRecipeModal() {
+            document.getElementById('recipe-ingredients-list').innerHTML = '';
+            addIngredientRow(); 
+            toggleModal('modal-recipe');
+        }
+
+        function addIngredientRow() {
+            const container = document.getElementById('recipe-ingredients-list');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center';
+            
+            // Using Input with List for searchability
+            div.innerHTML = `
+                <input list="material-list" class="ing-name flex-1 border rounded p-2 text-sm" placeholder="Ketik nama bahan..." required onchange="validateIngredientInput(this)">
+                <input type="hidden" class="ing-id">
+                <input type="number" class="ing-qty w-24 border rounded p-2 text-sm" placeholder="Jml" required min="0.1" step="0.1">
+                <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 px-2">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        // Convert selected name to ID
+        function validateIngredientInput(input) {
+            const val = input.value;
+            const opts = document.getElementById('material-list').childNodes;
+            let foundId = '';
+            for (var i = 0; i < opts.length; i++) {
+                if (opts[i].value === val) {
+                    foundId = opts[i].getAttribute('data-id');
+                    break;
+                }
+            }
+            // Update hidden ID field
+            input.nextElementSibling.value = foundId;
+            if(!foundId) input.setCustomValidity("Pilih bahan dari daftar!");
+            else input.setCustomValidity("");
+        }
+
+        function saveRecipe(e) {
+            e.preventDefault();
+            const name = document.getElementById('rec-name').value;
+            const ingredientRows = document.querySelectorAll('#recipe-ingredients-list > div');
+            
+            let ingredients = [];
+            ingredientRows.forEach(row => {
+                const matId = row.querySelector('.ing-id').value;
+                const qty = parseFloat(row.querySelector('.ing-qty').value);
+                if (matId && qty) {
+                    ingredients.push({ materialId: matId, qty: qty });
+                }
+            });
+
+            if (ingredients.length === 0) {
+                alert('Pilih minimal satu bahan valid!');
+                return;
+            }
+
+            recipes.push({ id: generateId(), name, ingredients });
+            
+            renderRecipes();
+            toggleModal('modal-recipe');
+            document.getElementById('form-recipe').reset();
+            updateProductDropdown();
+        }
+
+        function renderRecipes() {
+            const searchQuery = document.getElementById('search-recipe').value.toLowerCase();
+            const grid = document.getElementById('recipe-grid');
+            const emptyState = document.getElementById('empty-recipes');
+            grid.innerHTML = '';
+
+            const filteredRecipes = recipes.filter(r => r.name.toLowerCase().includes(searchQuery));
+
+            if (filteredRecipes.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            filteredRecipes.forEach(recipe => {
+                let estimatedCost = 0;
+                let ingListHtml = '';
+                
+                recipe.ingredients.forEach(ing => {
+                    const mat = materials.find(m => m.id === ing.materialId);
+                    if(mat) {
+                        const cost = mat.price * ing.qty;
+                        estimatedCost += cost;
+                        ingListHtml += `<li class="text-xs text-gray-500 flex justify-between"><span>${mat.name}</span> <span>${ing.qty} ${mat.unit}</span></li>`;
+                    }
+                });
+
+                const compPrice = estimatedCost * 1.25;
+                const stdPrice = estimatedCost * 1.60;
+                const premPrice = estimatedCost * 1.85;
+
+                const card = document.createElement('div');
+                card.className = 'bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-bold text-gray-800 text-lg">${recipe.name}</h3>
+                        <i class="fas fa-utensils text-gray-300"></i>
+                    </div>
+                    
+                    <ul class="mb-4 space-y-1 bg-gray-50 p-3 rounded h-24 overflow-y-auto scroller border border-gray-100">
+                        ${ingListHtml}
+                    </ul>
+                    
+                    <!-- TAMPILAN HPP DASAR YANG DIPERJELAS -->
+                    <div class="mb-3 p-2 bg-gray-800 text-white rounded-lg flex justify-between items-center shadow-sm">
+                        <span class="text-xs font-semibold uppercase tracking-wider">HPP Dasar</span>
+                        <span class="font-bold text-lg text-emerald-400">${formatRupiah(estimatedCost)}</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-[10px] text-gray-400 uppercase mb-1 font-bold">Opsi Harga Jual</p>
+                        <div class="grid grid-cols-1 gap-1 text-xs">
+                             <div class="flex justify-between px-2 py-1 text-gray-500">
+                                <span>Kompetitif (25%)</span>
+                                <span class="font-medium text-gray-700">${formatRupiah(compPrice)}</span>
+                            </div>
+                            <div class="flex justify-between bg-pink-50 px-2 py-1 rounded border border-pink-100">
+                                <span class="text-pink-700 font-bold">Standar (60%)</span>
+                                <span class="font-bold text-pink-800">${formatRupiah(stdPrice)}</span>
+                            </div>
+                             <div class="flex justify-between px-2 py-1 text-gray-500">
+                                <span>Premium (85%)</span>
+                                <span class="font-medium text-gray-700">${formatRupiah(premPrice)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2 border-t mt-2">
+                        <button onclick="deleteRecipe('${recipe.id}')" class="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition">
+                            <i class="fas fa-trash"></i> Hapus Resep
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        
+        function deleteRecipe(id) {
+            recipes = recipes.filter(r => r.id !== id);
+            renderRecipes();
+            updateProductDropdown();
+        }
+
+        function updateProductDropdown() {
+            // Update Cart Select
+            const select = document.getElementById('cart-product-select');
+            select.innerHTML = '<option value="">-- Pilih Produk --</option>';
+            recipes.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.text = r.name;
+                select.appendChild(opt);
+            });
+        }
+
+        // --- CART SYSTEM LOGIC (NEW) ---
+        
+        function addToCart() {
+            const productId = document.getElementById('cart-product-select').value;
+            const qty = parseInt(document.getElementById('cart-qty').value);
+            
+            if(!productId || !qty) return;
+
+            const recipe = recipes.find(r => r.id === productId);
+            if(!recipe) return;
+
+            // Check if already in cart
+            const existing = cart.find(item => item.productId === productId);
+            if(existing) {
+                existing.qty += qty;
+            } else {
+                cart.push({
+                    productId: productId,
+                    name: recipe.name,
+                    qty: qty
+                });
+            }
+            
+            renderCart();
+            document.getElementById('cart-product-select').value = "";
+            document.getElementById('cart-qty').value = 1;
+        }
+
+        function renderCart() {
+            const tbody = document.getElementById('cart-table-body');
+            const emptyMsg = document.getElementById('empty-cart-msg');
+            const strategy = document.getElementById('order-price-strategy').value;
+            let margin = strategy === 'competitive' ? 0.25 : (strategy === 'standard' ? 0.60 : 0.85);
+
+            tbody.innerHTML = '';
+            
+            if(cart.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                document.getElementById('cart-total-qty').innerText = 0;
+                document.getElementById('cart-total-bill').innerText = formatRupiah(0);
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+
+            let totalBill = 0;
+            let totalItems = 0;
+
+            cart.forEach((item, index) => {
+                // Calc HPP
+                const recipe = recipes.find(r => r.id === item.productId);
+                let unitHPP = 0;
+                recipe.ingredients.forEach(ing => {
+                    const mat = materials.find(m => m.id === ing.materialId);
+                    if(mat) unitHPP += mat.price * ing.qty;
+                });
+                
+                const unitPrice = unitHPP * (1 + margin);
+                const subTotal = unitPrice * item.qty;
+                
+                totalBill += subTotal;
+                totalItems += item.qty;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-2 pl-2 font-medium">${item.name}</td>
+                    <td class="py-2 text-center">${item.qty}</td>
+                    <td class="py-2 text-right text-gray-500">${formatRupiah(unitPrice)}</td>
+                    <td class="py-2 text-right font-semibold">${formatRupiah(subTotal)}</td>
+                    <td class="py-2 text-center">
+                        <button onclick="removeFromCart(${index})" class="text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('cart-total-qty').innerText = totalItems;
+            document.getElementById('cart-total-bill').innerText = formatRupiah(totalBill);
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        function clearCart() {
+            cart = [];
+            renderCart();
+        }
+
+        function recalculateCart() {
+            renderCart();
+        }
+
+        function processCheckout() {
+            const customer = document.getElementById('order-customer').value;
+            const date = document.getElementById('order-date').value;
+            const strategy = document.getElementById('order-price-strategy').value;
+
+            if(!customer || !date) {
+                alert("Mohon isi Nama Pemesan dan Tanggal Kirim.");
+                return;
+            }
+            if(cart.length === 0) {
+                alert("Keranjang masih kosong.");
+                return;
+            }
+
+            // Aggregate Ingredients needed for WHOLE cart
+            let totalIngredientsNeeded = {}; // Key: MaterialID, Value: TotalQty
+
+            cart.forEach(item => {
+                const recipe = recipes.find(r => r.id === item.productId);
+                recipe.ingredients.forEach(ing => {
+                    if(!totalIngredientsNeeded[ing.materialId]) totalIngredientsNeeded[ing.materialId] = 0;
+                    totalIngredientsNeeded[ing.materialId] += (ing.qty * item.qty);
+                });
+            });
+
+            // Check Stock
+            const tbody = document.getElementById('sim-table-body');
+            tbody.innerHTML = '';
+            let isStockSafe = true;
+            let usedIngredients = [];
+
+            for (const [matId, needed] of Object.entries(totalIngredientsNeeded)) {
+                const mat = materials.find(m => m.id === matId);
+                if(!mat) continue;
+
+                const isEnough = mat.stock >= needed;
+                if(!isEnough) isStockSafe = false;
+
+                usedIngredients.push({ materialIndex: materials.indexOf(mat), amount: needed });
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 border font-medium">${mat.name}</td>
+                    <td class="p-2 border text-right">${needed.toLocaleString('id-ID')} ${mat.unit}</td>
+                    <td class="p-2 border text-right text-gray-500">${mat.stock.toLocaleString('id-ID')}</td>
+                    <td class="p-2 border text-center">
+                        ${isEnough 
+                            ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">Aman</span>' 
+                            : '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Kurang</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            // Prepare Invoice View
+            document.getElementById('res-customer-name').innerText = customer;
+            document.getElementById('res-delivery-date').innerText = formatDate(date);
+            document.getElementById('res-strategy-name').innerText = strategy.toUpperCase();
+            document.getElementById('report-created-at').innerText = new Date().toLocaleString('id-ID');
+
+            const resList = document.getElementById('res-item-list');
+            resList.innerHTML = '';
+            let finalTotal = 0;
+            let margin = strategy === 'competitive' ? 0.25 : (strategy === 'standard' ? 0.60 : 0.85);
+
+            cart.forEach(item => {
+                const recipe = recipes.find(r => r.id === item.productId);
+                let unitHPP = 0;
+                recipe.ingredients.forEach(ing => {
+                    const mat = materials.find(m => m.id === ing.materialId);
+                    if(mat) unitHPP += mat.price * ing.qty;
+                });
+                const price = unitHPP * (1 + margin);
+                const sub = price * item.qty;
+                finalTotal += sub;
+
+                resList.innerHTML += `
+                    <tr>
+                        <td class="p-2 border">${item.name}</td>
+                        <td class="p-2 border text-center">${item.qty}</td>
+                        <td class="p-2 border text-right">${formatRupiah(price)}</td>
+                        <td class="p-2 border text-right">${formatRupiah(sub)}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('res-final-total').innerText = formatRupiah(finalTotal);
+
+            // Status Badge Logic
+            const statusBadge = document.getElementById('stock-status-badge');
+            const saveBtn = document.getElementById('btn-save-order');
+
+            if (isStockSafe) {
+                statusBadge.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-700 border border-emerald-200';
+                statusBadge.innerHTML = '<i class="fas fa-check mr-2"></i> Stok Mencukupi';
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                saveBtn.classList.add('bg-pink-600', 'hover:bg-pink-700');
+            } else {
+                statusBadge.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-700 border border-red-200';
+                statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i> Stok Tidak Cukup';
+                saveBtn.disabled = true;
+                saveBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                saveBtn.classList.remove('bg-pink-600', 'hover:bg-pink-700');
+            }
+
+            // Save Data for Final Commit
+            currentSimulationData = {
+                customer, date, strategy, totalBill: finalTotal,
+                items: [...cart], // clone array
+                usedIngredients, isStockSafe
+            };
+
+            // Show Result
+            document.getElementById('simulation-result').classList.remove('hidden');
+            document.getElementById('simulation-result').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelCheckout() {
+            document.getElementById('simulation-result').classList.add('hidden');
+            currentSimulationData = null;
+        }
+
+        function saveOrderFinal() {
+             if (!currentSimulationData || !currentSimulationData.isStockSafe) return;
+
+             // 1. Deduct Stock
+             currentSimulationData.usedIngredients.forEach(u => {
+                 materials[u.materialIndex].stock -= u.amount;
+             });
+
+             // 2. Save Order
+             const newOrder = {
+                 id: generateId(),
+                 date: currentSimulationData.date,
+                 customer: currentSimulationData.customer,
+                 items: currentSimulationData.items, // Array of products
+                 totalBill: currentSimulationData.totalBill,
+                 status: 'pending' // Default status
+             };
+             orders.unshift(newOrder);
+
+             // 3. Reset UI
+             renderInventory();
+             renderOrders();
+             clearCart();
+             document.getElementById('order-customer').value = "";
+             cancelCheckout();
+             alert("Pesanan berhasil disimpan dan stok dikurangi!");
+             document.getElementById('dashboard-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // --- ORDERS HISTORY LOGIC (UPDATED) ---
+        function renderOrders() {
+            const searchQuery = document.getElementById('search-orders').value.toLowerCase();
+            const tbody = document.getElementById('orders-table-body');
+            const emptyState = document.getElementById('empty-orders');
+            tbody.innerHTML = '';
+
+            const filteredOrders = orders.filter(o => o.customer.toLowerCase().includes(searchQuery));
+
+            if (filteredOrders.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            filteredOrders.forEach((order, index) => {
+                // Find index in original array for updates
+                const originalIndex = orders.findIndex(o => o.id === order.id);
+
+                let itemListHtml = "";
+                order.items.forEach(item => {
+                    itemListHtml += `<div class="text-xs text-gray-600">• ${item.name} (x${item.qty})</div>`;
+                });
+
+                const isDone = order.status === 'done';
+                const rowClass = isDone ? 'bg-green-50' : 'hover:bg-gray-50';
+                
+                const tr = document.createElement('tr');
+                tr.className = `border-b transition ${rowClass}`;
+                tr.innerHTML = `
+                    <td class="p-4 text-center">
+                        <input type="checkbox" onchange="toggleOrderStatus(${originalIndex})" ${isDone ? 'checked' : ''} class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300">
+                        <div class="text-[10px] font-bold mt-1 ${isDone ? 'text-emerald-600' : 'text-gray-400'}">${isDone ? 'SELESAI' : 'PENDING'}</div>
+                    </td>
+                    <td class="p-4 text-gray-600">${formatDate(order.date)}</td>
+                    <td class="p-4 font-medium text-gray-800">${order.customer}</td>
+                    <td class="p-4">${itemListHtml}</td>
+                    <td class="p-4 text-right font-bold text-emerald-600">${formatRupiah(order.totalBill)}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="deleteOrder(${originalIndex})" class="text-red-400 hover:text-red-600">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleOrderStatus(index) {
+            if(orders[index].status === 'pending') {
+                orders[index].status = 'done';
+            } else {
+                orders[index].status = 'pending';
+            }
+            renderOrders();
+        }
+
+        function deleteOrder(index) {
+            if(confirm('Hapus riwayat pesanan ini?')) {
+                orders.splice(index, 1);
+                renderOrders();
+            }
+        }
+
+        // --- DUMMY DATA ---
+        function generateDummyData() {
+            if(materials.length > 0) {
+                if(!confirm('Data sudah ada. Tambahkan data dummy lagi?')) return;
+            }
+            
+            const flourId = generateId();
+            const sugarId = generateId();
+            const eggId = generateId();
+            const chocoId = generateId();
+
+            const newMaterials = [
+                { id: flourId, name: 'Tepung Terigu Protein Sedang', stock: 5000, unit: 'gram', price: 12 }, 
+                { id: sugarId, name: 'Gula Pasir', stock: 2000, unit: 'gram', price: 16 },
+                { id: eggId, name: 'Telur Ayam', stock: 50, unit: 'pcs', price: 2000 },
+                { id: chocoId, name: 'Coklat Bubuk Premium', stock: 500, unit: 'gram', price: 150 }
+            ];
+            materials.push(...newMaterials);
+            updateMaterialDatalist();
+
+            const newRecipes = [
+                {
+                    id: generateId(),
+                    name: 'Jenar Fudgy Brownies (20x20)',
+                    ingredients: [
+                        { materialId: flourId, qty: 150 }, 
+                        { materialId: sugarId, qty: 200 }, 
+                        { materialId: eggId, qty: 2 },     
+                        { materialId: chocoId, qty: 50 }   
+                    ]
+                }
+            ];
+            recipes.push(...newRecipes);
+            
+            orders.push({
+                id: generateId(),
+                date: new Date().toISOString().split('T')[0],
+                customer: 'Budi Santoso',
+                status: 'pending',
+                items: [{ productId: newRecipes[0].id, name: newRecipes[0].name, qty: 5 }],
+                totalBill: 250000
+            });
+
+            renderInventory();
+            renderRecipes();
+            renderOrders();
+            updateProductDropdown();
+            alert('Data Jenar Bakery berhasil dimuat!');
+        }
+
+    </script>
+</body>
+</html>
